@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>나만의 야외 채집 도감</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 50px;
+        }
+        h2 { text-align: center; color: #2c3e50; margin: 10px 0 20px 0; }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+
+        .input-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color: #555; }
+        input[type="text"], input[type="number"], textarea {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            background-color: #fafafa;
+        }
+        textarea { resize: vertical; height: 70px; }
+
+        /* 카메라 영역 */
+        .camera-box {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        video, #snapshotImage {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #snapshotImage { display: none; }
+
+        /* 버튼 디자인 */
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+        .btn-capture { background-color: #3498db; color: white; }
+        .btn-save { background-color: #27ae60; color: white; font-size: 1.2em; padding: 16px; margin-top: 5px;}
+        .btn-open-dogam { background-color: #8e44ad; color: white; font-size: 1.2em; padding: 16px; }
+        .btn-reset { background-color: rgba(0,0,0,0.6); color: white; width: auto; padding: 6px 12px; font-size: 0.85em; position: absolute; bottom: 10px; right: 10px; z-index: 10; display: none; border-radius: 6px;}
+
+        /* 도감 모달(팝업) 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            height: 85vh;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-header h3 { margin: 0; color: #2c3e50; }
+        .close-btn { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #888; width: auto; padding: 0; margin: 0;}
+
+        /* 검색창 스타일 */
+        .search-box {
+            margin-bottom: 12px;
+        }
+        .search-box input {
+            background-color: #f1f3f5;
+        }
+
+        /* 도감 그리드 리스트 */
+        .grid-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #eaeaea;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .card:active { transform: scale(0.97); }
+        .card img {
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .card .no { font-size: 0.75em; color: #888; font-weight: bold; text-align: left; }
+        .card .name { font-weight: bold; font-size: 1em; color: #333; text-align: left; margin-top: 2px; }
+
+        /* 상세 정보 보기 팝업 */
+        .detail-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .detail-box {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            padding: 20px;
+            box-sizing: border-box;
+            max-height: 90vh;
+            overflow-y: auto;
+            text-align: center;
+        }
+        .detail-box img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px; margin-bottom: 15px; }
+        .detail-info { text-align: left; margin-bottom: 15px; }
+        .detail-info p { margin: 6px 0; font-size: 0.95em; }
+        .detail-info span { font-weight: bold; color: #555; }
+        .delete-item-btn { background-color: #e74c3c; color: white; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🌿 야외 채집 & 등록</h2>
+
+    <button class="btn btn-open-dogam" onclick="openDogamModal()">📖 내 도감 열기 (<span id="dogamCount">0</span>)</button>
+    <hr style="border:0; border-top:1px solid #eee; margin: 15px 0;">
+
+    <div class="input-group">
+        <label>도감 번호</label>
+        <input type="number" id="dogamNo" placeholder="예: 1" inputmode="numeric">
+    </div>
+    
+    <div class="input-group">
+        <label>이름</label>
+        <input type="text" id="dogamName" placeholder="예: 네잎클로버">
+    </div>
+
+    <div class="input-group">
+        <label>발견 장소</label>
+        <input type="text" id="dogamLocation" placeholder="예: 뒷산 약수터 근처">
+    </div>
+
+    <div class="input-group">
+        <label>상세 메모 / 특징</label>
+        <textarea id="dogamMemo" placeholder="날씨, 특징, 느낀점 등을 적어보세요"></textarea>
+    </div>
+
+    <label>사진 촬영</label>
+    <div class="camera-box">
+        <video id="video" autoplay playsinline muted></video>
+        <img id="snapshotImage" alt="촬영된 사진">
+        <button id="resetBtn" class="btn btn-reset" onclick="resetCamera()">🔄 다시 찍기</button>
+    </div>
+    <button id="captureBtn" class="btn btn-capture" onclick="takeSnapshot()">📸 현장 사진 찍기</button>
+
+    <button class="btn btn-save" onclick="saveToDogam()">도감에 저장하기</button>
+</div>
+
+<!-- 도감 목록 모달 -->
+<div class="modal" id="dogamModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📖 수집한 도감 목록</h3>
+            <button class="close-btn" onclick="closeDogamModal()">&times;</button>
+        </div>
+        
+        <!-- 검색창 추가 -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 이름 또는 장소로 검색해보세요" oninput="filterDogam()">
+        </div>
+
+        <div class="grid-container" id="dogamGrid">
+            <!-- 카드들이 여기에 동적으로 들어감 -->
+        </div>
+    </div>
+</div>
+
+<!-- 상세 정보 보기 모달 -->
+<div class="detail-modal" id="detailModal">
+    <div class="detail-box">
+        <img id="detailImg" src="" alt="상세 사진">
+        <div class="detail-info">
+            <p><span>번호:</span> <span id="detailNo"></span></p>
+            <p><span>이름:</span> <span id="detailName"></span></p>
+            <p><span>발견 장소:</span> <span id="detailLocation"></span></p>
+            <p><span>메모:</span> <span id="detailMemo"></span></p>
+        </div>
+        <button class="btn delete-item-btn" id="deleteBtn">이 기록 삭제하기</button>
+        <button class="btn" style="background-color: #95a5a6; margin-top: 5px;" onclick="closeDetailModal()">닫기</button>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const snapshotImage = document.getElementById('snapshotImage');
+    const captureBtn = document.getElementById('captureBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    let stream = null;
+    let capturedBlob = null;
+    let dogamList = JSON.parse(localStorage.getItem('outdoorDogam_v3')) || [];
+
+    async function startCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
+            video.srcObject = stream;
+        } catch (err) {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err2) {
+                console.log("카메라 접근 불가:", err2);
+            }
+        }
+    }
+
+    function takeSnapshot() {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // 용량 최적화를 위해 품질 0.7 적용
+        snapshotImage.src = dataUrl;
+        snapshotImage.style.display = 'block';
+        video.style.display = 'none';
+
+        captureBtn.style.display = 'none';
+        resetBtn.style.display = 'block';
+
+        canvas.toBlob((blob) => {
+            capturedBlob = blob;
+        }, 'image/jpeg', 0.7);
+    }
+
+    function resetCamera() {
+        capturedBlob = null;
+        snapshotImage.src = '';
+        snapshotImage.style.display = 'none';
+        video.style.display = 'block';
+        captureBtn.style.display = 'block';
+        resetBtn.style.display = 'none';
+        startCamera();
+    }
+
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function saveToDogam() {
+        const no = document.getElementById('dogamNo').value;
+        const name = document.getElementById('dogamName').value;
+        const location = document.getElementById('dogamLocation').value || '기록 없음';
+        const memo = document.getElementById('dogamMemo').value || '작성된 메모 없음';
+
+        if (!no || !name) {
+            alert("번호와 이름을 입력해주세요!");
+            return;
+        }
+        if (!capturedBlob) {
+            alert("사진을 촬영해주세요!");
+            return;
+        }
+
+        const saveBtn = document.querySelector('.btn-save');
+        saveBtn.innerText = '저장 중...';
+        saveBtn.disabled = true;
+
+        try {
+            const base64Image = await blobToBase64(capturedBlob);
+            
+            const newItem = {
+                id: Date.now(),
+                no: no,
+                name: name,
+                location: location,
+                memo: memo,
+                image: base64Image
+            };
+
+            dogamList.push(newItem);
+            dogamList.sort((a, b) => Number(a.no) - Number(b.no));
+
+            localStorage.setItem('outdoorDogam_v3', JSON.stringify(dogamList));
+            
+            updateDogamCount();
+            clearForm();
+            alert("도감에 성공적으로 저장되었습니다!");
+            openDogamModal();
+            
+        } catch (e) {
+            alert("저장 공간이 부족하거나 오류가 발생했습니다.");
+            console.error(e);
+        } finally {
+            saveBtn.innerText = '도감에 저장하기';
+            saveBtn.disabled = false;
+        }
+    }
+
+    function clearForm() {
+        document.getElementById('dogamNo').value = '';
+        document.getElementById('dogamName').value = '';
+        document.getElementById('dogamLocation').value = '';
+        document.getElementById('dogamMemo').value = '';
+        resetCamera();
+    }
+
+    function updateDogamCount() {
+        document.getElementById('dogamCount').innerText = dogamList.length;
+    }
+
+    // 도감 목록 렌더링 (검색어 필터링 포함)
+    function renderDogamGrid(filteredList = dogamList) {
+        const grid = document.getElementById('dogamGrid');
+        grid.innerHTML = '';
+
+        if (filteredList.length === 0) {
+            grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #888; padding: 30px;">검색 결과가 없습니다.</p>';
+            return;
+        }
+
+        filteredList.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => showDetail(item);
+            card.innerHTML = `
+                <img src="${item.image}" alt="${item.name}">
+                <div class="no">No. ${item.no}</div>
+                <div class="name">${item.name}</div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // 실시간 검색 기능
+    function filterDogam() {
+        const keyword = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = dogamList.filter(item => 
+            item.name.toLowerCase().includes(keyword) || 
+            item.location.toLowerCase().includes(keyword) ||
+            item.no.toString().includes(keyword)
+        );
+        renderDogamGrid(filtered);
+    }
+
+    function showDetail(item) {
+        document.getElementById('detailImg').src = item.image;
+        document.getElementById('detailNo').innerText = item.no;
+        document.getElementById('detailName').innerText = item.name;
+        document.getElementById('detailLocation').innerText = item.location;
+        document.getElementById('detailMemo').innerText = item.memo;
+        
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.onclick = () => deleteItem(item.id);
+
+        document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    function closeDetailModal() {
+        document.getElementById('detailModal').style.display = 'none';
+    }
+
+    function deleteItem(id) {
+        if (confirm("정말 이 도감 기록을 삭제하시겠습니까?")) {
+            dogamList = dogamList.filter(item => item.id !== id);
+            localStorage.setItem('outdoorDogam_v3', JSON.stringify(dogamList));
+            updateDogamCount();
+            document.getElementById('searchInput').value = '';
+            renderDogamGrid();
+            closeDetailModal();
+        }
+    }
+
+    function openDogamModal() {
+        document.getElementById('searchInput').value = '';
+        renderDogamGrid();
+        document.getElementById('dogamModal').style.display = 'flex';
+    }
+    function closeDogamModal() {
+        document.getElementById('dogamModal').style.display = 'none';
+    }
+
+    startCamera();
+    updateDogamCount();
+</script>
+
+</body>
+</html>
